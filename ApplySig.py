@@ -9,6 +9,7 @@
 from __future__ import print_function
 from ghidra.framework.model import DomainFile
 from ghidra.program.model.symbol import SourceType
+from ghidra.program.model.mem import MemoryAccessException
 from ghidra.util import Msg
 
 from java.lang import IllegalArgumentException
@@ -697,6 +698,7 @@ def funk_rename(addr, funk):
 	name = funk.name
 	if name != '?':
 		funk = getFunctionAt(parseAddress(hex(addr).strip('L')))
+                print("Renaming {} to {}".format(funk.getName(), name))
 		funk.setName(name, SourceType.USER_DEFINED)
 		rename_cnt += 1
 	return
@@ -708,9 +710,13 @@ def apply_sig(flirt):
 	while funk is not None:
 		funk_start = int(funk.entryPoint.toString(), 16)
 		funk_end   = get_function_end(funk)
-		funk_buf   = getBytes(parseAddress(hex(funk_start).strip('L')), funk_end - funk_start + 0x100)
-		#print('%x - %x' % (funk_start, funk_end))
-		match_function(flirt, funk_buf, funk_start, funk_rename)
+                try:
+                    funk_buf   = getBytes(parseAddress(hex(funk_start).strip('L')), funk_end - funk_start + 0x100)
+                    #print('%x - %x' % (funk_start, funk_end))
+                    #print("Func: {}, Start: {}, End: {}".format(funk, hex(funk_start), hex(funk_end)))
+                    match_function(flirt, funk_buf, funk_start, funk_rename)
+                except MemoryAccessException:
+                    print("MemoryAccessException for Func: {}, Start: {}, End: {}. Ignoring".format(funk, hex(funk_start), hex(funk_end)))
 		funk = getFunctionAfter(funk)
 
 f = ask_sig()
@@ -725,5 +731,5 @@ print('Count:', flirt.header.n_functions)
 #print('OS:   ', flirt.header.os_types)
 print('Apply Signatures.....')
 apply_sig(flirt)
-print('[ %d / %d ]' % (rename_cnt, flirt.header.n_functions))
+print('[ %d renamed / %d flirt func count]' % (rename_cnt, flirt.header.n_functions))
 print('Done!')
